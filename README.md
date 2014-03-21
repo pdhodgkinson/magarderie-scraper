@@ -31,4 +31,4 @@ Edit values in config.js
     
 or
     
-    npm run
+    npm start
