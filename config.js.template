@@ -1,0 +1,32 @@
+//Config settings
+module.exports = {
+    query: {
+        postalCode: '<your_postal_code>',
+        maxPrice: <max_price>,
+        ageInMonths: <child_age_in_months>,
+        maxDistanceInKM: <max_distance_from_postal_code>,
+        numberOfSpaces: <number_of_spaces>
+    },
+    mail: {
+        transport: {
+            service: 'Gmail',
+            auth: {
+                user: '<gmail_username>',
+                pass: '<gmail_password>'
+            }
+        },
+        delivery: {
+            from: 'MaGarderie mailer <user@test.com>',
+            to: '<user@test.com>'
+            subject: 'Magarderie Update'
+        }
+    },
+    urls: {
+        baseDomain: 'www.magarderie.com',
+        baseUrl: 'http://www.magarderie.com',
+        indexUrl: 'http://www.magarderie.com/recherche.php'
+    },
+    database: {
+        connectionString: 'mongodb://localhost/magarderie'
+    }
+};

@@ -1,0 +1,91 @@
+<h1>MaGarderie Mailer</h1>
+{{#each elements}}
+    {{#if this.firstNew}}
+        <h2>New Listings</h2>
+    {{/if}}
+    {{#if this.firstUpdated}}
+        <h2>Updated Listings</h2>
+    {{/if}}
+    <h3><a href='{{../baseURL}}{{this.href}}'>{{this.title}}</a></h3>
+    <table>
+        <tr>
+            <td>
+                <strong>Distance</strong>
+            </td>
+            <td>
+                {{this.distance}}km
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Type</strong>
+            </td>
+            <td>
+                {{this.type}}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Contact Name</strong>
+            </td>
+            <td>
+                {{this.contactName}}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Email</strong>
+            </td>
+            <td>
+                {{this.email}}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Phone</strong>
+            </td>
+            <td>
+                {{this.phone}}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Address</strong>
+            </td>
+            <td>
+                <a href='http://maps.google.com/?q={{{this.address}}}'>{{this.address}}</a>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Last Update</strong>
+            </td>
+            <td>
+                {{this.moment}}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Places</strong>
+            </td>
+            <td>
+                <table style="border: 1px solid">
+                    <tr>
+                        <td><strong>Number of Places</strong></td>
+                        <td><strong>Age Group</strong></td>
+                        <td><strong>Date Available</strong></td>
+                        <td><strong>Price Per Day</strong></td>
+                    </tr>
+                    {{#each this.places}}
+                        <tr>
+                            <td>{{this.numPlaces}}</td>
+                            <td>{{this.ageGroup}}</td>
+                            <td>{{this.availableDate}}</td>
+                            <td>{{this.pricePerDay}}</td>
+                        </tr>
+                    {{/each}}
+                </table>
+            </td>
+        </tr>
+    </table>
+{{/each}}
