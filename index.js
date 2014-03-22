@@ -18,6 +18,72 @@ var queryParams = [
     detailsPageDefers = [];
 
 /**
+ * Fetch an individual garderie details page, parse it, save or update it in
+ * the database if necessary
+ *
+ * @param {GarderieSummary} garderie the summary object retrieve from an index page
+ * @returns {adapter.deferred.promise|*|promise|Q.promise} resolved when the details
+ *  page for given garderie has been fetched and parsed. Returns undefined if there
+ *  are not changes to what exists in the DB; Returns the new {GarderieDetails} if
+ *  it is a new entry or has changes since it was last persisted to the DB
+ */
+var getDetailsPage = function (garderie) {
+    var deferred = Q.defer();
+    //async call to fetch details page and parse it
+    requester.fetchDetailsPage(garderie, function (garderie, body) {
+        var detailedGarderie = parsers.DetailsPageParser(body);
+        //get existing db entry
+        db.findGarderieById(garderie.id, function (err, result) {
+            if (err) {
+                console.log(err);
+            }
+            if (result === null) {
+                console.log('No result found for: [' + garderie.id +
+                    ']. Saving new entry.');
+                db.saveGarderie(garderie.id, garderie.href, garderie.title,
+                    garderie.distance, detailedGarderie.type,
+                    detailedGarderie.contactName, detailedGarderie.email,
+                    detailedGarderie.phone, detailedGarderie.address,
+                    detailedGarderie.lastUpdate,
+                    detailedGarderie.placeInfo, function (err, garderie) {
+                        if (err) {
+                            console.log(err);
+                            deferred.reject(err);
+                        } else {
+                            deferred.resolve(garderie);
+                        }
+                    });
+            } else if (result.lastUpdate === null ||
+                new Date(detailedGarderie.lastUpdate).getTime() !==
+                    result.lastUpdate.getTime()) {
+                console.log('Changes to existing result found for: [' +
+                    garderie.id + ']. Updating entry.');
+                db.updateGarderie(result, garderie.href, garderie.title,
+                    garderie.distance, detailedGarderie.type,
+                    detailedGarderie.contactName, detailedGarderie.email,
+                    detailedGarderie.phone, detailedGarderie.address,
+                    detailedGarderie.lastUpdate,
+                    detailedGarderie.placeInfo, function (err, garderie) {
+                        if (err) {
+                            console.log(err);
+                            deferred.reject(err);
+                        } else {
+                            deferred.resolve(garderie);
+                        }
+                    });
+
+            } else {
+                console.log('No update to: [' + garderie.id +
+                    ']. Not overwriting');
+                deferred.resolve();
+            }
+        });
+
+    });
+    return deferred.promise;
+};
+
+/**
  * Fetch a magarderie search index page, based on given page number (to scroll through result
  * sets) and pre-defined query parameters
  * @param pageNum
@@ -34,76 +100,11 @@ var getIndexPage = function (pageNum) {
                 },
                 garderiesInRange = results.garderies.filter(withinDistanceFilter),
                 outOfRange = (results.garderies.length !== garderiesInRange.length),
-                fetchNext,
-                /**
-                 * Fetch an individual garderie details page, parse it, save or update it in
-                 * the database if necessary
-                 *
-                 * @param {GarderieSummary} garderie the summary object retrieve from an index page
-                 * @returns {adapter.deferred.promise|*|promise|Q.promise} resolved when the details
-                 *  page for given garderie has been fetched and parsed. Returns undefined if there
-                 *  are not changes to what exists in the DB; Returns the new {GarderieDetails} if
-                 *  it is a new entry or has changes since it was last persisted to the DB
-                 */
-                fetchDetails = function (garderie) {
-                    var deferred = Q.defer();
-                    //async call to fetch details page and parse it
-                    requester.fetchDetailsPage(garderie, function (garderie, body) {
-                        var detailedGarderie = parsers.DetailsPageParser(body);
-                        //get existing db entry
-                        db.findGarderieById(garderie.id, function (err, result) {
-                            if (err) {
-                                console.log(err);
-                            }
-                            if (result === null) {
-                                console.log('No result found for: [' + garderie.id +
-                                    ']. Saving new entry.');
-                                db.saveGarderie(garderie.id, garderie.href, garderie.title,
-                                    garderie.distance, detailedGarderie.type,
-                                    detailedGarderie.contactName, detailedGarderie.email,
-                                    detailedGarderie.phone, detailedGarderie.address,
-                                    detailedGarderie.lastUpdate,
-                                    detailedGarderie.placeInfo, function (err, garderie) {
-                                        if (err) {
-                                            console.log(err);
-                                            deferred.reject(err);
-                                        } else {
-                                            deferred.resolve(garderie);
-                                        }
-                                    });
-                            } else if (result.lastUpdate === null ||
-                                    new Date(detailedGarderie.lastUpdate).getTime() !==
-                                        result.lastUpdate.getTime()) {
-                                console.log('Changes to existing result found for: [' +
-                                    garderie.id + ']. Updating entry.');
-                                db.updateGarderie(result, garderie.href, garderie.title,
-                                    garderie.distance, detailedGarderie.type,
-                                    detailedGarderie.contactName, detailedGarderie.email,
-                                    detailedGarderie.phone, detailedGarderie.address,
-                                    detailedGarderie.lastUpdate,
-                                    detailedGarderie.placeInfo, function (err, garderie) {
-                                        if (err) {
-                                            console.log(err);
-                                            deferred.reject(err);
-                                        } else {
-                                            deferred.resolve(garderie);
-                                        }
-                                    });
-
-                            } else {
-                                console.log('No update to: [' + garderie.id +
-                                    ']. Not overwriting');
-                                deferred.resolve();
-                            }
-                        });
-
-                    });
-                    return deferred.promise;
-                };
+                fetchNext;
 
             //fetch details
             garderiesInRange.each(function (i, garderie) {
-                detailsPageDefers.push(fetchDetails(garderie));
+                detailsPageDefers.push(getDetailsPage(garderie));
             });
 
             fetchNext = (results.hasMore === true && outOfRange === false);
