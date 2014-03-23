@@ -5,7 +5,8 @@ var Q = require('q'),
     parsers = require('./parsers'),
     db = require('./model/db'),
     mail = require('./mail'),
-    queryConfig = require('./config').query;
+    queryConfig = require('./config').query,
+    logger = require('./logger');
 
 var queryParams = [
         requests.QueryParams.NumberOfSpaces(queryConfig.numberOfSpaces),
@@ -35,10 +36,10 @@ var getDetailsPage = function (garderie) {
         //get existing db entry
         db.findGarderieById(garderie.id, function (err, result) {
             if (err) {
-                console.log(err);
+                logger.error(err);
             }
             if (result === null) {
-                console.log('No result found for: [' + garderie.id +
+                logger.info('No result found for: [' + garderie.id +
                     ']. Saving new entry.');
                 db.saveGarderie(garderie.id, garderie.href, garderie.title,
                     garderie.distance, detailedGarderie.type,
@@ -47,7 +48,7 @@ var getDetailsPage = function (garderie) {
                     detailedGarderie.lastUpdate,
                     detailedGarderie.placeInfo, function (err, garderie) {
                         if (err) {
-                            console.log(err);
+                            logger.error(err);
                             deferred.reject(err);
                         } else {
                             deferred.resolve(garderie);
@@ -56,7 +57,7 @@ var getDetailsPage = function (garderie) {
             } else if (result.lastUpdate === null ||
                 new Date(detailedGarderie.lastUpdate).getTime() !==
                     result.lastUpdate.getTime()) {
-                console.log('Changes to existing result found for: [' +
+                logger.info('Changes to existing result found for: [' +
                     garderie.id + ']. Updating entry.');
                 db.updateGarderie(result, garderie.href, garderie.title,
                     garderie.distance, detailedGarderie.type,
@@ -65,7 +66,7 @@ var getDetailsPage = function (garderie) {
                     detailedGarderie.lastUpdate,
                     detailedGarderie.placeInfo, function (err, garderie) {
                         if (err) {
-                            console.log(err);
+                            logger.error(err);
                             deferred.reject(err);
                         } else {
                             deferred.resolve(garderie);
@@ -73,7 +74,7 @@ var getDetailsPage = function (garderie) {
                     });
 
             } else {
-                console.log('No update to: [' + garderie.id +
+                logger.info('No update to: [' + garderie.id +
                     ']. Not overwriting');
                 deferred.resolve();
             }
@@ -155,8 +156,8 @@ var mailResults = function (results) {
             return a.distance - b.distance;
         };
     results = results.filter(undefinedFilter).sort(resultSort);
-    console.log('Here are results: ');
-    console.dir(results);
+    logger.log('Here are results: ');
+    logger.log(results);
     //mail them
     if (results.length > 0) {
         mail.sendMail(results);

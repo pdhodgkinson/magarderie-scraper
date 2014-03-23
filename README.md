@@ -24,6 +24,7 @@ Edit values in config.js
 * query parameters
 * mail credentials and recipients
 * db connection string
+* logging settings
 
 ## Usage
     

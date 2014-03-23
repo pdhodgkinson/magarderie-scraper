@@ -1,25 +1,25 @@
 {
-    "name": "magarderie-scraper",
-    "version": "0.0.1",
-    "author": "Peter Hodgkinson <pdhodgkinson@gmail.com",
-    "scripts": {
-        "start": "node index.js"
-    },
-    "respository": {
-        "type": "git",
-        "url": "https://github.com/pdhodgkinson/magarderie-scraper"
-    },
-
-    "dependencies": {
-        "async": "~0.2.10",
-        "check-types": "~1.2.1",
-        "cheerio": "~0.13.1",
-        "handlebars": "~2.0.0-alpha.2",
-        "moment": "~2.5.1",
-        "mongoose": "~3.8.8",
-        "nodemailer": "~0.6.1",
-        "q": "~1.0.1",
-        "request": "~2.34.0"
-    },
-    "license": "MIT"
+  "name": "magarderie-scraper",
+  "version": "0.0.1",
+  "author": "Peter Hodgkinson <pdhodgkinson@gmail.com",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "respository": {
+    "type": "git",
+    "url": "https://github.com/pdhodgkinson/magarderie-scraper"
+  },
+  "dependencies": {
+    "async": "~0.2.10",
+    "check-types": "~1.2.1",
+    "cheerio": "~0.13.1",
+    "handlebars": "~2.0.0-alpha.2",
+    "moment": "~2.5.1",
+    "mongoose": "~3.8.8",
+    "nodemailer": "~0.6.1",
+    "q": "~1.0.1",
+    "request": "~2.34.0",
+    "winston": "~0.7.2"
+  },
+  "license": "MIT"
 }

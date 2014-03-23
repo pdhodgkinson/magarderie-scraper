@@ -8,7 +8,8 @@ var nodemailer = require('nodemailer'),
     cheerio = require('cheerio'),
     handlebars = require('handlebars'),
     moment = require('moment'),
-    config = require('./config');
+    config = require('./config'),
+    logger = require('./logger');
 
 var smtpTransport = nodemailer.createTransport('SMTP', config.mail.transport),
     readyDeferred = Q.defer(),
@@ -74,10 +75,10 @@ module.exports = {
             // send mail with defined transport object
             smtpTransport.sendMail(mailOptions, function (error, response) {
                 if (error) {
-                    console.log(error);
+                    logger.error(error);
                     throw error;
                 } else {
-                    console.log('Message sent: ' + response.message);
+                    logger.info('Message sent: ' + response.message);
                 }
                 smtpTransport.close(); // shut down the connection pool, no more messages
             });
