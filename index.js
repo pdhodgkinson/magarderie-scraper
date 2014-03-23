@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 'use strict';
 var Q = require('q'),
     check = require('check-types'),
