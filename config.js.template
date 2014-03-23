@@ -3,7 +3,7 @@ module.exports = {
     query: {
         postalCode: '<your_postal_code>',
         maxPrice: <max_price>,
-        ageInMonths: <child_age_in_months>,
+        //ageInMonths: <child_age_in_months>, //Comment or uncomment desired variables
         maxDistanceInKM: <max_distance_from_postal_code>,
         numberOfSpaces: <number_of_spaces>
     },

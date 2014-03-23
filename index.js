@@ -8,13 +8,23 @@ var Q = require('q'),
     queryConfig = require('./config').query,
     logger = require('./logger');
 
-var queryParams = [
-        requests.QueryParams.NumberOfSpaces(queryConfig.numberOfSpaces),
-        requests.QueryParams.Type.All,
-        requests.QueryParams.PostalCode(queryConfig.postalCode),
-        requests.QueryParams.MaxPrice(queryConfig.maxPrice),
-        requests.QueryParams.AgeInMonths(queryConfig.ageInMonths)
-    ],
+var queryParams = (function () {
+        var params = [];
+        if (check.number(queryConfig.numberOfSpaces)) {
+            params.push(requests.QueryParams.NumberOfSpaces(queryConfig.numberOfSpaces));
+        }
+        if (check.unemptyString(queryConfig.postalCode)) {
+            params.push(requests.QueryParams.PostalCode(queryConfig.postalCode));
+        }
+        if (check.number(queryConfig.maxPrice)) {
+            params.push(requests.QueryParams.MaxPrice(queryConfig.maxPrice));
+        }
+        if (check.number(queryConfig.ageInMonths)) {
+            params.push(requests.QueryParams.AgeInMonths(queryConfig.ageInMonths));
+        }
+        params.push(requests.QueryParams.Type.All);
+        return params;
+    }()),
     requester = new requests.Requester(queryParams),
     detailsPageDefers = [];
 
