@@ -28,5 +28,9 @@ module.exports = {
     },
     database: {
         connectionString: 'mongodb://localhost/magarderie'
+    },
+    log: {
+        file: '/tmp/magarderie.log',
+        level: 'info'
     }
 };
