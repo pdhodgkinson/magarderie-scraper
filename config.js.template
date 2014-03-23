@@ -30,7 +30,7 @@ module.exports = {
         connectionString: 'mongodb://localhost/magarderie'
     },
     log: {
-        file: '/tmp/magarderie.log',
+        file: '/var/log/magarderie.log',
         level: 'info'
     }
 };
