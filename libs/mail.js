@@ -8,7 +8,7 @@ var nodemailer = require('nodemailer'),
     cheerio = require('cheerio'),
     handlebars = require('handlebars'),
     moment = require('moment'),
-    config = require('./config'),
+    config = require('./../config'),
     logger = require('./logger');
 
 var smtpTransport = nodemailer.createTransport('SMTP', config.mail.transport),

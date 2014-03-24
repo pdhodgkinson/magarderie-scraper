@@ -2,152 +2,14 @@
 'use strict';
 var Q = require('q'),
     check = require('check-types'),
-    requests = require('./requests'),
-    parsers = require('./parsers'),
-    db = require('./model/db'),
-    mail = require('./mail'),
+    requests = require('./libs/requests'),
+    parsers = require('./libs/parsers'),
+    db = require('./libs/model/db'),
+    mail = require('./libs/mail'),
     queryConfig = require('./config').query,
-    logger = require('./logger');
-
-var queryParams = (function () {
-        var params = [];
-        if (check.number(queryConfig.numberOfSpaces)) {
-            params.push(requests.QueryParams.NumberOfSpaces(queryConfig.numberOfSpaces));
-        }
-        if (check.unemptyString(queryConfig.postalCode)) {
-            params.push(requests.QueryParams.PostalCode(queryConfig.postalCode));
-        }
-        if (check.number(queryConfig.maxPrice)) {
-            params.push(requests.QueryParams.MaxPrice(queryConfig.maxPrice));
-        }
-        if (check.number(queryConfig.ageInMonths)) {
-            params.push(requests.QueryParams.AgeInMonths(queryConfig.ageInMonths));
-        }
-        params.push(requests.QueryParams.Type.All);
-        return params;
-    }()),
-    requester = new requests.Requester(queryParams),
-    detailsPageDefers = [];
-
-/**
- * Fetch an individual garderie details page, parse it, save or update it in
- * the database if necessary
- *
- * @param {GarderieSummary} garderie the summary object retrieve from an index page
- * @returns {adapter.deferred.promise|*|promise|Q.promise} resolved when the details
- *  page for given garderie has been fetched and parsed. Returns undefined if there
- *  are not changes to what exists in the DB; Returns the new {GarderieDetails} if
- *  it is a new entry or has changes since it was last persisted to the DB
- */
-var getDetailsPage = function (garderie) {
-    var deferred = Q.defer();
-    //async call to fetch details page and parse it
-    requester.fetchDetailsPage(garderie, function (garderie, body) {
-        var detailedGarderie = parsers.DetailsPageParser(body);
-        //get existing db entry
-        db.findGarderieById(garderie.id, function (err, result) {
-            if (err) {
-                logger.error(err);
-            }
-            if (result === null) {
-                logger.info('No result found for: [' + garderie.id +
-                    ']. Saving new entry.');
-                db.saveGarderie(garderie.id, garderie.href, garderie.title,
-                    garderie.distance, detailedGarderie.type,
-                    detailedGarderie.contactName, detailedGarderie.email,
-                    detailedGarderie.phone, detailedGarderie.address,
-                    detailedGarderie.lastUpdate,
-                    detailedGarderie.placeInfo, function (err, garderie) {
-                        if (err) {
-                            logger.error(err);
-                            deferred.reject(err);
-                        } else {
-                            deferred.resolve(garderie);
-                        }
-                    });
-            } else if (result.lastUpdate === null ||
-                new Date(detailedGarderie.lastUpdate).getTime() !==
-                    result.lastUpdate.getTime()) {
-                logger.info('Changes to existing result found for: [' +
-                    garderie.id + ']. Updating entry.');
-                db.updateGarderie(result, garderie.href, garderie.title,
-                    garderie.distance, detailedGarderie.type,
-                    detailedGarderie.contactName, detailedGarderie.email,
-                    detailedGarderie.phone, detailedGarderie.address,
-                    detailedGarderie.lastUpdate,
-                    detailedGarderie.placeInfo, function (err, garderie) {
-                        if (err) {
-                            logger.error(err);
-                            deferred.reject(err);
-                        } else {
-                            deferred.resolve(garderie);
-                        }
-                    });
-
-            } else {
-                logger.info('No update to: [' + garderie.id +
-                    ']. Not overwriting');
-                deferred.resolve();
-            }
-        });
-
-    });
-    return deferred.promise;
-};
-
-/**
- * Fetch a magarderie search index page, based on given page number (to scroll through result
- * sets) and pre-defined query parameters
- * @param pageNum
- * @returns {adapter.deferred.promise|*|promise|Q.promise} resolved when index page has been
- *  fetched and parsed. Return value indicates if there are more pertinent results based on
- *  query parameters and available pages remaining
- */
-var getIndexPage = function (pageNum) {
-    var getIndexPage = Q.defer(),
-        cb = function (err, response, body) {
-            var results = parsers.IndexPageParser(body),
-                withinDistanceFilter = function (index, garderie) {
-                    return garderie.distance <= queryConfig.maxDistanceInKM;
-                },
-                garderiesInRange = results.garderies.filter(withinDistanceFilter),
-                outOfRange = (results.garderies.length !== garderiesInRange.length),
-                fetchNext;
-
-            //fetch details
-            garderiesInRange.each(function (i, garderie) {
-                detailsPageDefers.push(getDetailsPage(garderie));
-            });
-
-            fetchNext = (results.hasMore === true && outOfRange === false);
-            getIndexPage.resolve(fetchNext);
-        };
-
-    requester.fetchIndexPage(pageNum, cb);
-    return getIndexPage.promise;
-};
-
-/**
- * Fetches and parses all applicable index pages
- * @returns {adapter.deferred.promise|*|promise|Q.promise} Resolves when there are no more pages
- * to be fetched within the given criteria
- */
-var fetchAllGarderies = function () {
-    var fetchAllGarderies = Q.defer(),
-        doFetchPage = function (pageNum) {
-            getIndexPage(pageNum).done(function (fetchNext) {
-                if (fetchNext === true) {
-                    doFetchPage(pageNum + 1);
-                } else {
-                    fetchAllGarderies.resolve([]);
-                }
-            });
-        };
-    doFetchPage(1);
-
-    return fetchAllGarderies.promise;
-};
-
+    config = require('./config'),
+    Fetcher = require('./libs/fetcher'),
+    logger = require('./libs/logger');
 /**
  * Mails the results of the page fetching in an email
  * @param results the array of results from parsing the set of detail pages
@@ -176,6 +38,8 @@ var mailResults = function (results) {
     return true;
 };
 
+var fetcher = new Fetcher(config.query);
+
 /**
  * Main flow control
  *  1. Wait for DB connection to be open
@@ -185,9 +49,9 @@ var mailResults = function (results) {
  *  5. Done!
  */
 db.ready()
-    .then(fetchAllGarderies)
+    .then(fetcher.fetchAllGarderies)
     .then(function () {
-        return Q.all(detailsPageDefers);
+        return Q.all(fetcher.detailsPageDefers); //TODO: Move this into fetcher and wait on it there... or here
     })
     .then(mailResults)
     .then(db.close)

@@ -1,7 +1,7 @@
 'use strict';
 var check = require('check-types'),
     request = require('request'),
-    urls = require('./config').urls;
+    urls = require('./../config').urls;
 
 /**
  * A Query parameter to pass into URL requests.

@@ -1,7 +1,7 @@
 'use strict';
 var mongoose = require('mongoose'),
     Q = require('q'),
-    config = require('../config').database,
+    config = require('../../config').database,
     logger = require('../logger');
 
 /**
