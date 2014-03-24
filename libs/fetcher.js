@@ -26,7 +26,8 @@ var Fetcher = function (queryConfig) {
     }
     queryParams.push(requests.QueryParams.Type.All);
 
-    this.allDetailsPagesFetched = function () {
+    this.waitForDetailsPagesToBeFetched = function () {
+        logger.debug('Waiting on %d details page defers', this.detailsPageDefers.length);
         return Q.all(this.detailsPageDefers);
     };
 
@@ -146,14 +147,21 @@ var Fetcher = function (queryConfig) {
     };
 
     /**
-     * Fetches and parses all applicable index pages
+     * Fetches and parses all applicable index pages and the detail pages from the index pages
      * @returns {adapter.deferred.promise|*|promise|Q.promise} Resolves when there are no more pages
-     * to be fetched within the given criteria
+     * to be fetched within the given criteria. Returns the parsed details pages.
      */
     this.fetchAllGarderies = function () {
+        //Initialize the defers
         this.indexPageDefers = Q.defer();
+        this.detailsPageDefers = [];
+        
+        //Do the recursive function call to get all applicable index pages, starting from 1 
         this.fetchIndexPagesRecursive(1);
-        return this.indexPageDefers.promise;
+        
+        return this.indexPageDefers.promise //wait for all the index pages to be parsed
+            .then(this.waitForDetailsPagesToBeFetched.bind(this)); //then wait for all the details 
+                                                                   //pages to be finished
     };
 
 };

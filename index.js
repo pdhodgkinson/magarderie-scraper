@@ -12,7 +12,7 @@ var check = require('check-types'),
  * @returns {boolean}
  */
 var mailResults = function (results) {
-    logger.debug('Enter mailResults');
+    logger.debug('Enter mailResults with %d unfiltered results', results.length);
     var undefinedFilter = function (result) {
             return check.object(result);
         },
@@ -26,6 +26,7 @@ var mailResults = function (results) {
             return a.distance - b.distance;
         };
     results = results.filter(undefinedFilter).sort(resultSort);
+    logger.info('Mailing out %d results.', results.length);
     logger.debug('Here are the results to send: ', results.map(function (result) {
         return result.toJSON();
     }));
@@ -47,18 +48,7 @@ var fetcher = new Fetcher(config.query);
  *  5. Done!
  */
 db.ready()
-    .then(function () {
-        //ninoke makes sure 'this' is bound to 'fetcher'
-        logger.debug('In Ninvoke fetchAllGarderies');
-        //return Q.ninvoke(fetcher, 'fetchAllGarderies');
-        return fetcher.fetchAllGarderies();
-    })
-    .then(function () {
-        //ninoke makes sure 'this' is bound to 'fetcher'
-        logger.debug('In Ninvoke allDetailsPagesFetched');
-        //return Q.ninvoke(fetcher, 'allDetailsPagesFetched'); //TODO: Move this into fetcher and wait on it there... or here
-        return fetcher.allDetailsPagesFetched();
-    })
+    .then(fetcher.fetchAllGarderies.bind(fetcher))
     .then(mailResults)
     .then(db.close)
     .done();
