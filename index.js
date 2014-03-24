@@ -1,43 +1,17 @@
 #!/usr/bin/env node
 'use strict';
-var check = require('check-types'),
+var //check = require('check-types'),
     db = require('./libs/model/db'),
-    mail = require('./libs/mail'),
+    Mailer = require('./libs/mail'),
     config = require('./config'),
     Fetcher = require('./libs/fetcher'),
     logger = require('./libs/logger');
-/**
- * Mails the results of the page fetching in an email
- * @param results the array of results from parsing the set of detail pages
- * @returns {boolean}
- */
-var mailResults = function (results) {
-    logger.debug('Enter mailResults with %d unfiltered results', results.length);
-    var undefinedFilter = function (result) {
-            return check.object(result);
-        },
-        resultSort = function (a, b) {
-            if (a.__v === 0 && b.__v !== 0) {
-                return -1;
-            }
-            if (b.__v === 0 && a.__v !== 0) {
-                return 1;
-            }
-            return a.distance - b.distance;
-        };
-    results = results.filter(undefinedFilter).sort(resultSort);
-    logger.info('Mailing out %d results.', results.length);
-    logger.debug('Here are the results to send: ', results.map(function (result) {
-        return result.toJSON();
-    }));
-    //mail them
-    if (results.length > 0) {
-        mail.sendMail(results);
-    }
-    return true;
-};
 
+
+//var logger = new Logger(config.log); //TODO: implement this
+//var db = new DB(config.database); //TODO: implement this
 var fetcher = new Fetcher(config.query);
+var mailer = new Mailer(config.mail, config.urls);
 
 /**
  * Main flow control
@@ -49,6 +23,6 @@ var fetcher = new Fetcher(config.query);
  */
 db.ready()
     .then(fetcher.fetchAllGarderies.bind(fetcher))
-    .then(mailResults)
+    .then(mailer.mailResults.bind(mailer))
     .then(db.close)
     .done();

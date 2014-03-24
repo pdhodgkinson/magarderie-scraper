@@ -8,40 +8,40 @@ var nodemailer = require('nodemailer'),
     cheerio = require('cheerio'),
     handlebars = require('handlebars'),
     moment = require('moment'),
-    config = require('./../config'),
+    check = require('check-types'),
     logger = require('./logger');
 
-var smtpTransport = nodemailer.createTransport('SMTP', config.mail.transport),
-    readyDeferred = Q.defer(),
-    mailBuilder,
-    /**
-     * Promise for when the the mail template has been loaded and processed
-     *
-     * @returns {adapter.deferred.promise|*|promise|Q.promise} A promise that resolves when
-     * the mail template is ready
-     */
-    ready = function () {
-        return readyDeferred.promise;
-    };
+var Mailer = function (mailConfig, urlConfig) {
+    var smtpTransport = nodemailer.createTransport('SMTP', mailConfig.transport),
+        readyDeferred = Q.defer(),
+        mailBuilder,
+        /**
+         * Promise for when the the mail template has been loaded and processed
+         *
+         * @returns {adapter.deferred.promise|*|promise|Q.promise} A promise that resolves when
+         * the mail template is ready
+         */
+         ready = function () {
+            return readyDeferred.promise;
+        };
 
-// Read mail template
-fs.readFile('./templates/mail.hbs', 'utf-8', function (err, mailTemplate) {
-    if (err) {
-        throw err;
-    }
-    handlebars.registerHelper('isIndexEqual', function (index, checkValue) {
-        return index === checkValue;
+    // Read mail template
+    fs.readFile('./templates/mail.hbs', 'utf-8', function (err, mailTemplate) {
+        if (err) {
+            throw err;
+        }
+        handlebars.registerHelper('isIndexEqual', function (index, checkValue) {
+            return index === checkValue;
+        });
+        mailBuilder = handlebars.compile(mailTemplate);
+        readyDeferred.resolve();
     });
-    mailBuilder = handlebars.compile(mailTemplate);
-    readyDeferred.resolve();
-});
 
-module.exports = {
     /**
      * Sends an e-mail containing the garderie information
      * @param {Object[]} arGarderie The array of garderies to template and send via email
      */
-    sendMail: function (arGarderie) {
+    this.sendMail = function (arGarderie) {
         ready().then(function () {
             var templateInput = (function () {
                     var i,
@@ -62,11 +62,11 @@ module.exports = {
                         garderie.moment = moment(garderie.lastUpdate).fromNow();
                     }
 
-                    return { elements: arGarderie, baseURL: config.urls.baseUrl };
+                    return { elements: arGarderie, baseURL: urlConfig.baseUrl };
                 }()),
                 content = mailBuilder(templateInput),
                 mailOptions = (function () {
-                    var options = config.mail.delivery;
+                    var options = mailConfig.delivery;
                     options.text = cheerio.load(content)('table').text();
                     options.html = content;
                     return options;
@@ -83,8 +83,41 @@ module.exports = {
                 smtpTransport.close(); // shut down the connection pool, no more messages
             });
         });
-    }
+    };
+
+    /**
+     * Mails the results of the page fetching in an email
+     * @param results the array of results from parsing the set of detail pages
+     * @returns {boolean}
+     */
+    this.mailResults = function (results) {
+        logger.debug('Enter mailResults with %d unfiltered results', results.length);
+        var undefinedFilter = function (result) {
+                return check.object(result);
+            },
+            resultSort = function (a, b) {
+                if (a.__v === 0 && b.__v !== 0) {
+                    return -1;
+                }
+                if (b.__v === 0 && a.__v !== 0) {
+                    return 1;
+                }
+                return a.distance - b.distance;
+            };
+        results = results.filter(undefinedFilter).sort(resultSort);
+        logger.info('Mailing out %d results.', results.length);
+        logger.debug('Here are the results to send: ', results.map(function (result) {
+            return result.toJSON();
+        }));
+        //mail them
+        if (results.length > 0) {
+            this.sendMail(results);
+        }
+        return true;
+    };
 };
+
+module.exports = Mailer;
 
 
 
