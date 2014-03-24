@@ -9,6 +9,7 @@ var Fetcher = function (queryConfig) {
     'use strict';
     var queryParams = [],
         requester = new requests.Requester(queryParams);
+    this.indexPageDefers = [];
     this.detailsPageDefers = [];
 
     if (check.number(queryConfig.numberOfSpaces)) {
@@ -25,6 +26,9 @@ var Fetcher = function (queryConfig) {
     }
     queryParams.push(requests.QueryParams.Type.All);
 
+    this.allDetailsPagesFetched = function () {
+        return Q.all(this.detailsPageDefers);
+    };
 
     /**
      * Fetch an individual garderie details page, parse it, save or update it in
@@ -37,58 +41,60 @@ var Fetcher = function (queryConfig) {
      *  it is a new entry or has changes since it was last persisted to the DB
      */
     this.getDetailsPage = function (garderie) {
-        var deferred = Q.defer();
+        var deferred = Q.defer(),
+            fetchDetailsCallback = function (garderie, body) {
+                var detailedGarderie = parsers.DetailsPageParser(body);
+                //get existing db entry
+                db.findGarderieById(garderie.id, function (err, result) {
+                    if (err) {
+                        logger.error(err);
+                    }
+                    if (result === null) {
+                        logger.info('No result found for: [' + garderie.id +
+                            ']. Saving new entry.');
+                        db.saveGarderie(garderie.id, garderie.href, garderie.title,
+                            garderie.distance, detailedGarderie.type,
+                            detailedGarderie.contactName, detailedGarderie.email,
+                            detailedGarderie.phone, detailedGarderie.address,
+                            detailedGarderie.lastUpdate,
+                            detailedGarderie.placeInfo, function (err, garderie) {
+                                if (err) {
+                                    logger.error(err);
+                                    deferred.reject(err);
+                                } else {
+                                    deferred.resolve(garderie);
+                                }
+                            });
+                    } else if (result.lastUpdate === null ||
+                        new Date(detailedGarderie.lastUpdate).getTime() !==
+                            result.lastUpdate.getTime()) {
+                        logger.info('Changes to existing result found for: [' +
+                            garderie.id + ']. Updating entry.');
+                        db.updateGarderie(result, garderie.href, garderie.title,
+                            garderie.distance, detailedGarderie.type,
+                            detailedGarderie.contactName, detailedGarderie.email,
+                            detailedGarderie.phone, detailedGarderie.address,
+                            detailedGarderie.lastUpdate,
+                            detailedGarderie.placeInfo, function (err, garderie) {
+                                if (err) {
+                                    logger.error(err);
+                                    deferred.reject(err);
+                                } else {
+                                    deferred.resolve(garderie);
+                                }
+                            });
+
+                    } else {
+                        logger.info('No update to: [' + garderie.id +
+                            ']. Not overwriting');
+                        deferred.resolve();
+                    }
+                }.bind(this));
+            }.bind(this);
+        
         //async call to fetch details page and parse it
-        requester.fetchDetailsPage(garderie, function (garderie, body) {
-            var detailedGarderie = parsers.DetailsPageParser(body);
-            //get existing db entry
-            db.findGarderieById(garderie.id, function (err, result) {
-                if (err) {
-                    logger.error(err);
-                }
-                if (result === null) {
-                    logger.info('No result found for: [' + garderie.id +
-                        ']. Saving new entry.');
-                    db.saveGarderie(garderie.id, garderie.href, garderie.title,
-                        garderie.distance, detailedGarderie.type,
-                        detailedGarderie.contactName, detailedGarderie.email,
-                        detailedGarderie.phone, detailedGarderie.address,
-                        detailedGarderie.lastUpdate,
-                        detailedGarderie.placeInfo, function (err, garderie) {
-                            if (err) {
-                                logger.error(err);
-                                deferred.reject(err);
-                            } else {
-                                deferred.resolve(garderie);
-                            }
-                        });
-                } else if (result.lastUpdate === null ||
-                    new Date(detailedGarderie.lastUpdate).getTime() !==
-                        result.lastUpdate.getTime()) {
-                    logger.info('Changes to existing result found for: [' +
-                        garderie.id + ']. Updating entry.');
-                    db.updateGarderie(result, garderie.href, garderie.title,
-                        garderie.distance, detailedGarderie.type,
-                        detailedGarderie.contactName, detailedGarderie.email,
-                        detailedGarderie.phone, detailedGarderie.address,
-                        detailedGarderie.lastUpdate,
-                        detailedGarderie.placeInfo, function (err, garderie) {
-                            if (err) {
-                                logger.error(err);
-                                deferred.reject(err);
-                            } else {
-                                deferred.resolve(garderie);
-                            }
-                        });
-
-                } else {
-                    logger.info('No update to: [' + garderie.id +
-                        ']. Not overwriting');
-                    deferred.resolve();
-                }
-            });
-
-        });
+        requester.fetchDetailsPage(garderie, fetchDetailsCallback);
+           
         return deferred.promise;
     };
 
@@ -102,26 +108,41 @@ var Fetcher = function (queryConfig) {
      */
     this.getIndexPage = function (pageNum) {
         var getIndexPage = Q.defer(),
-            cb = function (err, response, body) {
+            callback = function (err, response, body) {
                 var results = parsers.IndexPageParser(body),
                     withinDistanceFilter = function (index, garderie) {
                         return garderie.distance <= queryConfig.maxDistanceInKM;
                     },
                     garderiesInRange = results.garderies.filter(withinDistanceFilter),
                     outOfRange = (results.garderies.length !== garderiesInRange.length),
-                    fetchNext;
-
+                    fetchNext,
+                    doDeferredDetailsPage = function (index, garderie) {
+                        this.detailsPageDefers.push(this.getDetailsPage(garderie));
+                    }.bind(this);
+                
                 //fetch details
-                garderiesInRange.each(function (i, garderie) {
-                    this.detailsPageDefers.push(this.getDetailsPage(garderie));
-                });
+                garderiesInRange.each(doDeferredDetailsPage);
 
                 fetchNext = (results.hasMore === true && outOfRange === false);
                 getIndexPage.resolve(fetchNext);
-            };
+            }.bind(this);
 
-        requester.fetchIndexPage(pageNum, cb.bind(this));
+        requester.fetchIndexPage(pageNum, callback);
         return getIndexPage.promise;
+    };
+    
+    this.fetchIndexPagesRecursive = function (pageNum) {
+        logger.debug('Entering fetchIndexPagesRecursive with pageNum: [%s]', pageNum);
+        var callback = function (fetchNext) {
+            logger.debug('In fetchIndexPagesRecursive.callback with fetchNext: [%s]' +
+                ', pageNum: [%s]', fetchNext, pageNum);
+            if (fetchNext === true) {
+                this.fetchIndexPagesRecursive(pageNum + 1);
+            } else {
+                this.indexPageDefers.resolve();
+            }
+        }.bind(this);
+        this.getIndexPage(pageNum).done(callback);
     };
 
     /**
@@ -130,19 +151,9 @@ var Fetcher = function (queryConfig) {
      * to be fetched within the given criteria
      */
     this.fetchAllGarderies = function () {
-        var fetchAllGarderies = Q.defer(),
-            doFetchPage = function (pageNum) {
-                this.getIndexPage(pageNum).done(function (fetchNext) {
-                    if (fetchNext === true) {
-                        doFetchPage(pageNum + 1);
-                    } else {
-                        fetchAllGarderies.resolve([]);
-                    }
-                });
-            };
-        doFetchPage(1);
-
-        return fetchAllGarderies.promise;
+        this.indexPageDefers = Q.defer();
+        this.fetchIndexPagesRecursive(1);
+        return this.indexPageDefers.promise;
     };
 
 };

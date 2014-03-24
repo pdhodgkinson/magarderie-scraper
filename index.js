@@ -1,12 +1,8 @@
 #!/usr/bin/env node
 'use strict';
-var Q = require('q'),
-    check = require('check-types'),
-    requests = require('./libs/requests'),
-    parsers = require('./libs/parsers'),
+var check = require('check-types'),
     db = require('./libs/model/db'),
     mail = require('./libs/mail'),
-    queryConfig = require('./config').query,
     config = require('./config'),
     Fetcher = require('./libs/fetcher'),
     logger = require('./libs/logger');
@@ -16,6 +12,7 @@ var Q = require('q'),
  * @returns {boolean}
  */
 var mailResults = function (results) {
+    logger.debug('Enter mailResults');
     var undefinedFilter = function (result) {
             return check.object(result);
         },
@@ -29,8 +26,9 @@ var mailResults = function (results) {
             return a.distance - b.distance;
         };
     results = results.filter(undefinedFilter).sort(resultSort);
-    logger.log('Here are results: ');
-    logger.log(results);
+    logger.debug('Here are the results to send: ', results.map(function (result) {
+        return result.toJSON();
+    }));
     //mail them
     if (results.length > 0) {
         mail.sendMail(results);
@@ -49,9 +47,17 @@ var fetcher = new Fetcher(config.query);
  *  5. Done!
  */
 db.ready()
-    .then(fetcher.fetchAllGarderies)
     .then(function () {
-        return Q.all(fetcher.detailsPageDefers); //TODO: Move this into fetcher and wait on it there... or here
+        //ninoke makes sure 'this' is bound to 'fetcher'
+        logger.debug('In Ninvoke fetchAllGarderies');
+        //return Q.ninvoke(fetcher, 'fetchAllGarderies');
+        return fetcher.fetchAllGarderies();
+    })
+    .then(function () {
+        //ninoke makes sure 'this' is bound to 'fetcher'
+        logger.debug('In Ninvoke allDetailsPagesFetched');
+        //return Q.ninvoke(fetcher, 'allDetailsPagesFetched'); //TODO: Move this into fetcher and wait on it there... or here
+        return fetcher.allDetailsPagesFetched();
     })
     .then(mailResults)
     .then(db.close)
