@@ -8,10 +8,9 @@ var nodemailer = require('nodemailer'),
     cheerio = require('cheerio'),
     handlebars = require('handlebars'),
     moment = require('moment'),
-    check = require('check-types'),
-    logger = require('./logger');
+    check = require('check-types');
 
-var Mailer = function (mailConfig, urlConfig) {
+var Mailer = function (mailConfig, urlConfig, logger) {
     var smtpTransport = nodemailer.createTransport('SMTP', mailConfig.transport),
         readyDeferred = Q.defer(),
         mailBuilder,

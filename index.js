@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 'use strict';
-var //check = require('check-types'),
-    db = require('./libs/model/db'),
+var DB = require('./libs/model/db'),
     Mailer = require('./libs/mail'),
-    config = require('./config'),
     Fetcher = require('./libs/fetcher'),
-    logger = require('./libs/logger');
+    Logger = require('./libs/logger'),
+    config = require('./config');
 
 
-//var logger = new Logger(config.log); //TODO: implement this
-//var db = new DB(config.database); //TODO: implement this
-var fetcher = new Fetcher(config.query);
-var mailer = new Mailer(config.mail, config.urls);
+var logger = new Logger(config.log);
+var db = new DB(config.database, logger);
+var fetcher = new Fetcher(config.query, db, logger);
+var mailer = new Mailer(config.mail, config.urls, logger);
 
 /**
  * Main flow control

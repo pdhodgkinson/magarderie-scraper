@@ -1,17 +1,27 @@
 var check = require('check-types'),
     Q = require('q'),
     requests = require('./requests'),
-    parsers = require('./parsers'),
-    db = require('./model/db'),
-    logger = require('./logger');
+    parsers = require('./parsers');
 
-var Fetcher = function (queryConfig) {
+var Fetcher = function (queryConfig, db, logger) {
     'use strict';
     var queryParams = [],
         requester = new requests.Requester(queryParams);
-    this.indexPageDefers = [];
+
+    /**
+     * The deferred promise will resolve when the index pages have all been fetched and parsed
+     * @type {Q.promise}
+     */
+    this.indexPageDefers = null;
+
+    /**
+     * The array of promises for each detailed page that is to be fetched. Once they are all
+     * resolved, then all details pages should be fetched, parsed, and returned as a result array
+     * @type {Array}
+     */
     this.detailsPageDefers = [];
 
+    //Check for the presense of input query parameters
     if (check.number(queryConfig.numberOfSpaces)) {
         queryParams.push(requests.QueryParams.NumberOfSpaces(queryConfig.numberOfSpaces));
     }
@@ -26,6 +36,12 @@ var Fetcher = function (queryConfig) {
     }
     queryParams.push(requests.QueryParams.Type.All);
 
+    /**
+     * Allows a calling program to wait for all the details pages to be fetched
+     * 
+     * @returns {Q.promise} Promise that will resolve with an array of result details from 
+     * all fetched pages when complete
+     */
     this.waitForDetailsPagesToBeFetched = function () {
         logger.debug('Waiting on %d details page defers', this.detailsPageDefers.length);
         return Q.all(this.detailsPageDefers);
@@ -131,7 +147,12 @@ var Fetcher = function (queryConfig) {
         requester.fetchIndexPage(pageNum, callback);
         return getIndexPage.promise;
     };
-    
+
+    /**
+     * Recursively fetches the number of index pages required until fetchNext is returned false.
+     * Resolves the indexPageDefers when complete
+     * @param pageNum
+     */
     this.fetchIndexPagesRecursive = function (pageNum) {
         logger.debug('Entering fetchIndexPagesRecursive with pageNum: [%s]', pageNum);
         var callback = function (fetchNext) {

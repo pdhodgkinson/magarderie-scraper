@@ -1,14 +1,21 @@
-var winston = require('winston'),
-    config = require('./../config').log;
+var winston = require('winston');
 
-module.exports = new (winston.Logger)({
-    transports: [
-        new (winston.transports.Console)({
-            level: config.level
-        }),
-        new (winston.transports.File)({
-            filename: config.file,
-            level: config.level
-        })
-    ]
-});
+var Logger = function (config) {
+    'use strict';
+    var transport,
+        settings,
+        transports = [];
+    
+    for (transport in config.transports) {
+        if (config.transports.hasOwnProperty(transport)) {
+            settings = config.transports[transport];
+            transports.push(new (winston.transports[transport])(settings));
+        }
+    }
+    
+    return new (winston.Logger)({
+        transports: transports
+    });
+};
+
+module.exports = Logger;

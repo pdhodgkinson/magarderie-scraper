@@ -30,7 +30,15 @@ module.exports = {
         connectionString: 'mongodb://localhost/magarderie'
     },
     log: {
-        file: '/var/log/magarderie/magarderie.log',
-        level: 'info'
+        // See Winston transports https://github.com/flatiron/winston#working-with-transports
+        transports: {
+            Console: {
+                level: 'debug'
+            },
+            File: {
+                filename: '/var/log/magarderie/magarderie.log',
+                level: 'info'
+            }
+        }
     }
 };

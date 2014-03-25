@@ -1,62 +1,61 @@
 'use strict';
 var mongoose = require('mongoose'),
-    Q = require('q'),
-    config = require('../../config').database,
-    logger = require('../logger');
+    Q = require('q');
 
-/**
- * The deferred object that will wait for the DB connection to be open
- *
- * @type {Q.deferred}
- */
-var ready = Q.defer();
+var DB = function (config, logger) {
+    /**
+     * The deferred object that will wait for the DB connection to be open
+     *
+     * @type {Q.deferred}
+     */
+    var ready = Q.defer(),
+        Garderie = require('./garderie');
+        
 
-// Create the database connection
-mongoose.connect(config.connectionString);
+    // Create the database connection
+    mongoose.connect(config.connectionString);
 
-// CONNECTION EVENTS
-// When successfully connected
-mongoose.connection.on('connected', function () {
-    logger.info('Mongoose default connection open to ' + config.connectionString);
-});
-
-// If the connection throws an error
-mongoose.connection.on('error', function (err) {
-    logger.info('Mongoose default connection error: ' + err);
-});
-
-// When the connection is disconnected
-mongoose.connection.on('disconnected', function () {
-    logger.info('Mongoose default connection disconnected');
-});
-
-// If the Node process ends, close the Mongoose connection
-process.on('SIGINT', function () {
-    mongoose.connection.close(function () {
-        logger.info('Mongoose default connection disconnected through app termination');
-        process.exit(0);
+    // Connection Events
+    // When successfully connected
+    mongoose.connection.on('connected', function () {
+        logger.info('Mongoose default connection open to ' + config.connectionString);
     });
-});
 
-//The models
-var Garderie = require('./garderie');
+    // If the connection throws an error
+    mongoose.connection.on('error', function (err) {
+        logger.info('Mongoose default connection error: ' + err);
+    });
 
-/**
- * Resolve the ready deferred once the connection is open and ready
- */
-mongoose.connection.once('open', function () {
-    ready.resolve();
-});
+    // When the connection is disconnected
+    mongoose.connection.on('disconnected', function () {
+        logger.info('Mongoose default connection disconnected');
+    });
 
-module.exports = {
+    /**
+     * Resolve the ready deferred once the connection is open and ready
+     */
+    mongoose.connection.once('open', function () {
+        ready.resolve();
+    });
+
+    // If the Node process ends, close the Mongoose connection
+    process.on('SIGINT', function () {
+        mongoose.connection.close(function () {
+            logger.info('Mongoose default connection disconnected through app termination');
+            process.exit(0);
+        });
+    });
+
+
     /**
      * Fetch a garderie by id
      * @param {number} id the garderie id
      * @param callback Callback to trigger with the garderie data
      */
-    findGarderieById: function (id, callback) {
+    this.findGarderieById = function (id, callback) {
         Garderie.findById(id).exec(callback);
-    },
+    };
+    
     /**
      * Save a new garderie object
      * @param {number} id
@@ -72,9 +71,9 @@ module.exports = {
      * @param {Object[]} places
      * @param callback Callback to trigger with the save result
      */
-    saveGarderie: function (id, href, title, distance, type,
-        contactName, email, phone, address, lastUpdate, places,
-        callback) {
+    this.saveGarderie = function (id, href, title, distance, type,
+                            contactName, email, phone, address, lastUpdate, places,
+                            callback) {
         var garderie = new Garderie({
             _id: id,
             href: href,
@@ -90,7 +89,8 @@ module.exports = {
             dateUpdated: Date.now()
         });
         garderie.save(callback);
-    },
+    };
+    
     /**
      * Update an exisitng garderie with new data
      *
@@ -107,8 +107,8 @@ module.exports = {
      * @param {Object[]} places
      * @param callback Callback to trigger with the update result
      */
-    updateGarderie: function (garderie, href, title, distance, type, contactName,
-        email, phone, address, lastUpdate, places, callback) {
+    this.updateGarderie = function (garderie, href, title, distance, type, contactName,
+                              email, phone, address, lastUpdate, places, callback) {
         garderie.href = href;
         garderie.title = title;
         garderie.distance = distance;
@@ -122,23 +122,27 @@ module.exports = {
         garderie.dateUpdated = Date.now();
         garderie.markModified('array');
         garderie.save(callback);
-    },
+    };
+    
     /**
      * Function to wait on until the DB connection is ready
      *
      * @returns {Q.promise} the promise will resolve when the DB connection is open and ready
      */
-    ready: function () {
+    this.ready = function () {
         return ready.promise;
-    },
+    };
+    
     /**
      * Close the DB connection
      *
      * @returns {*|null|Connection}
      */
-    close: function () {
+    this.close = function () {
         logger.info('Closing connection');
         return mongoose.connection.close();
-    }
+    };
 };
+
+module.exports = DB;
 
