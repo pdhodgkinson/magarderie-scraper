@@ -67,7 +67,7 @@ var Fetcher = function (queryConfig, db, logger) {
                         logger.error(err);
                     }
                     if (result === null) {
-                        logger.info('No result found for: [' + garderie.id +
+                        logger.debug('No result found for: [' + garderie.id +
                             ']. Saving new entry.');
                         db.saveGarderie(garderie.id, garderie.href, garderie.title,
                             garderie.distance, detailedGarderie.type,
@@ -85,7 +85,7 @@ var Fetcher = function (queryConfig, db, logger) {
                     } else if (result.lastUpdate === null ||
                         new Date(detailedGarderie.lastUpdate).getTime() !==
                             result.lastUpdate.getTime()) {
-                        logger.info('Changes to existing result found for: [' +
+                        logger.debug('Changes to existing result found for: [' +
                             garderie.id + ']. Updating entry.');
                         db.updateGarderie(result, garderie.href, garderie.title,
                             garderie.distance, detailedGarderie.type,
@@ -102,7 +102,7 @@ var Fetcher = function (queryConfig, db, logger) {
                             });
 
                     } else {
-                        logger.info('No update to: [' + garderie.id +
+                        logger.debug('No update to: [' + garderie.id +
                             ']. Not overwriting');
                         deferred.resolve();
                     }
